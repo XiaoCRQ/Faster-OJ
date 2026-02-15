@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Faster-Oj",
+  "name": "Faster-OJ",
   "version": "1.0.0.1",
   "description": "读取 URL 自动提交代码",
   "author": "XiaoCRQ",

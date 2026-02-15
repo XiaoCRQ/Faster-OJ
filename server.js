@@ -1,12 +1,10 @@
 const WebSocket = require("ws");
 
-// 创建 WebSocket 服务器（普通 WS，不加密）
-const ws = new WebSocket.Server({ port: 10043, host: "127.0.0.1" });
+const wss = new WebSocket.Server({ port: 10044, host: "127.0.0.1" });
 
-ws.on("connection", (ws, req) => {
+wss.on("connection", (ws, req) => {
   console.log("客户端已连接:", req.socket.remoteAddress);
 
-  // 接收到客户端消息时触发
   ws.on("message", (message) => {
     console.log("收到数据:", message.toString());
 
@@ -30,5 +28,5 @@ ws.on("connection", (ws, req) => {
   ws.on("error", (err) => console.error("WebSocket 错误:", err));
 });
 
-console.log("ws://127.0.0.1:10043 已启动");
+console.log("ws://127.0.0.1:10044 已启动");
 

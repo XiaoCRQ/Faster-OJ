@@ -1,3 +1,4 @@
+// ---------------- wsManager ----------------
 const wsManager = {
   ws: null,
   wsUrl: 'ws://127.0.0.1:10044',
@@ -5,13 +6,11 @@ const wsManager = {
   reconnectTimer: null,
 
   init() {
-    // 从 storage 读取用户配置
     chrome.storage.local.get({ wsUrl: this.wsUrl }, (data) => {
       this.wsUrl = data.wsUrl;
       this.connect();
     });
 
-    // 动态监听 wsUrl 改变
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.wsUrl) {
         this.wsUrl = changes.wsUrl.newValue;
@@ -21,7 +20,7 @@ const wsManager = {
   },
 
   connect() {
-    if (this.ws || this.connecting) return; // 已经有连接或正在连接
+    if (this.ws || this.connecting) return;
     this.connecting = true;
 
     console.log('[wsManager] Connecting to', this.wsUrl);
@@ -44,7 +43,6 @@ const wsManager = {
 
     this.ws.onerror = (err) => {
       console.error('[wsManager] WebSocket error', err);
-      // 错误会触发 onclose，不用重复处理
     };
 
     this.ws.onclose = () => {
@@ -56,17 +54,16 @@ const wsManager = {
   },
 
   scheduleReconnect() {
-    if (this.reconnectTimer) return; // 已经有重连计划
+    if (this.reconnectTimer) return;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, 1000); // 固定 1 秒重连
+    }, 1000);
   },
 
   reconnect(force = false) {
-    // 强制断开当前连接并立即连接新地址
     if (this.ws) {
-      this.ws.onclose = null; // 防止触发旧的 reconnect
+      this.ws.onclose = null;
       this.ws.close();
       this.ws = null;
     }
@@ -83,11 +80,47 @@ const wsManager = {
   },
 };
 
-// ---------------- OJ 分发逻辑 ----------------
+// ---------------- 消息队列与发送机制 ----------------
+const messageQueue = new Map(); // tabId -> [{msg, timestamp}]
 
+function enqueueMessage(tabId, msg) {
+  if (!messageQueue.has(tabId)) messageQueue.set(tabId, []);
+  messageQueue.get(tabId).push({ msg, timestamp: Date.now() });
+}
+
+function flushQueue(tabId) {
+  const queue = messageQueue.get(tabId);
+  if (!queue || queue.length === 0) return;
+
+  queue.forEach(item => {
+    // 超过10秒的消息丢弃
+    if (Date.now() - item.timestamp > 10000) return;
+
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tabId },
+        files: ['content_script.js'] // content script 文件
+      },
+      () => {
+        chrome.tabs.sendMessage(tabId, item.msg, (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn('Message failed, will retry:', chrome.runtime.lastError.message);
+          }
+        });
+      }
+    );
+  });
+
+  // 清空队列
+  messageQueue.set(tabId, []);
+}
+
+// ---------------- OJ 分发逻辑 ----------------
 function handleOJ(url, code) {
+  let submitInfo = [];
+
   if (url.includes('luogu.com.cn')) {
-    openTabAndSendMessage(url + '#submit', code);
+    submitInfo.push({ url: url + '#submit', code });
   } else if (url.includes('codeforces.com')) {
     let submitUrl = '';
     let problemId = '';
@@ -108,27 +141,37 @@ function handleOJ(url, code) {
         problemId = problemNumber + problemLetter;
       }
     }
-    if (submitUrl && problemId) openTabAndSendMessage(submitUrl, { code, problem: problemId });
-    else console.warn('Could not parse Codeforces URL:', url);
+    if (submitUrl && problemId) submitInfo.push({ url: submitUrl, code: { code, problem: problemId } });
   } else if (url.includes('nowcoder.com')) {
-    openTabAndSendMessage(url, code);
+    submitInfo.push({ url, code });
   } else {
     console.log('Default action:', { url, code });
   }
+
+  submitInfo.forEach(info => openTabAndSendMessage(info.url, info.code));
 }
 
+// ---------------- 打开标签页并发送消息 ----------------
 function openTabAndSendMessage(url, code) {
   chrome.tabs.create({ url }, (tab) => {
     const tabId = tab.id;
 
+    function trySend() {
+      enqueueMessage(tabId, { url, code });
+      flushQueue(tabId);
+    }
+
     function listener(updatedTabId, changeInfo) {
       if (updatedTabId === tabId && changeInfo.status === 'complete') {
-        chrome.tabs.sendMessage(tabId, { url, code });
+        trySend();
         chrome.tabs.onUpdated.removeListener(listener);
       }
     }
 
     chrome.tabs.onUpdated.addListener(listener);
+
+    // 防止 content script 延迟注入
+    setTimeout(trySend, 500); // 500ms 后尝试发送一次
   });
 }
 

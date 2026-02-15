@@ -2,29 +2,52 @@ import asyncio
 import json
 import websockets
 
-url = "https://codeforces.com/problemset/problem/4/A"
-
+url = "https://www.luogu.com.cn/problem/P1001"
 code = r"""
 #include <bits/stdc++.h>
-using namespace std;
+#define EACH(a) for (auto &it : a)
+#define REP(i, n) for (ll i = 0, _ = (n); i < _; i++)
+#define REPD(i, n) for (ll i = (ll)(n) - 1, _ = 0; i >= _; i--)
 
-static inline void fast_io() {
-  ios::sync_with_stdio(false);
-  cin.tie(nullptr);
-}
+using namespace std;
+using ll = long long;
+using pl = pair<ll, ll>;
+using vl = vector<ll>;
+using vpl = vector<pl>;
+const ll MOD = 998244353;
+
+void solve() {}
 
 int main() {
-  fast_io();
+  cin.tie(0)->ios::sync_with_stdio(0);
+  ll a, b;
+  cin >> a >> b;
+  cout << a + b << '\n';
+}
+"""
 
-  int w;
-  cin >> w;
-
-  if (w % 2 == 0 && w > 2)
-    cout << "YES";
-  else
-    cout << "NO";
-  return 0;
-}"""
+# url = "https://codeforces.com/problemset/problem/4/A"
+# code = r"""
+# #include <bits/stdc++.h>
+# using namespace std;
+#
+# static inline void fast_io() {
+#   ios::sync_with_stdio(false);
+#   cin.tie(nullptr);
+# }
+#
+# int main() {
+#   fast_io();
+#
+#   int w;
+#   cin >> w;
+#
+#   if (w % 2 == 0 && w > 2)
+#     cout << "YES";
+#   else
+#     cout << "NO";
+#   return 0;
+# }"""
 
 async def send_json():
     uri = "ws://127.0.0.1:10044"  # 非加密 WS，不需要 ssl
