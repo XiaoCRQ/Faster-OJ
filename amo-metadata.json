@@ -1,0 +1,10 @@
+{
+  "summary": {
+    "en-US":"Receives tasks containing URLs and code via WebSocket to automate code submissions across major OJ platforms.",
+    "zh-CN": "通过 WebSocket 接收包含 URL 和代码的任务，实现各大 OJ 平台的自动化代码提交。"
+  },
+  "categories": ["web-development"],
+  "version": {
+    "license": "GPL-3.0"
+  }
+}
